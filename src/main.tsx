@@ -2,6 +2,7 @@ import { ChakraProvider, extendTheme } from "@chakra-ui/react";
 import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
+import { PermissionWrapper } from "./PermissionWrapper";
 
 // add this to prompt for a refresh
 const updateSW = registerSW({
@@ -32,6 +33,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             },
         })}
     >
-        <App />
+        <PermissionWrapper>
+            <App />
+        </PermissionWrapper>
     </ChakraProvider>
 );
