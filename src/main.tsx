@@ -11,9 +11,11 @@ import { PermissionWrapper } from "./PermissionWrapper";
 // add this to prompt for a refresh
 const updateSW = registerSW({
     onNeedRefresh() {
-        if (confirm("New content available. Reload?")) {
-            updateSW(true);
-        }
+        (async () => {
+            await updateSW(true);
+            // Reload the page after the service worker is updated
+            window.location.reload();
+        })();
     },
 });
 
