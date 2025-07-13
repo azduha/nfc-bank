@@ -86,6 +86,19 @@ function App() {
             { message, serialNumber }: NDEFReadingEvent,
             doToast?: boolean
         ): Card => {
+            if (!message || !message.records) {
+                if (doToast)
+                    toast({
+                        title: "Čtení se nezdařilo",
+                        description: "Karta nebyla rozpoznána.",
+                        status: "error",
+                    });
+
+                return {
+                    id: idToCardNumber(serialNumber),
+                };
+            }
+
             const nameData = message.records.filter(
                 (record) => record.mediaType === "nam"
             )[0]?.data;
@@ -161,6 +174,8 @@ function App() {
                         return;
                     }
 
+                    setCurrentCard(cardDetails);
+
                     let newBalance =
                         mode === "increase"
                             ? cardDetails.cardData.balance + amount
@@ -198,7 +213,7 @@ function App() {
                     }
 
                     // Now do the writing
-                    (async () => {
+                    const tryWrite = async () => {
                         try {
                             await ndef.write({
                                 records: [
@@ -235,19 +250,20 @@ function App() {
                                 },
                             });
                             setMode("read");
-                        } catch (error) {
+                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        } catch (_error) {
                             toast({
                                 title: "Chyba při zápisu na kartu",
-                                description:
-                                    error instanceof Error
-                                        ? error.message
-                                        : String(error),
+                                description: "Zkouším to znovu...",
                                 status: "error",
                             });
-                            setMode("read");
+
+                            tryWrite();
                             return;
                         }
-                    })();
+                    };
+
+                    tryWrite();
                 }) as EventListener;
                 ndef.addEventListener("reading", onSuccess);
 
