@@ -23,8 +23,12 @@ import { CardDisplay } from "./components/CardDisplay";
 import type { Card } from "./types";
 
 function idToCardNumber(id: string): number {
+    console.log(id, parseInt(id.replace(/:/g, ""), 16));
+    // Make sure to remove all colons and crop the string to 14 characters
+    id = id.replace(/:/g, "").slice(0, 14);
+
     // Convert "##:##:##:##:##:##:##" to "0000 0000 0000 0000"
-    return parseInt(id.replace(/:/g, ""), 16);
+    return parseInt(id, 16);
 }
 
 function App() {
@@ -83,10 +87,10 @@ function App() {
             doToast?: boolean
         ): Card => {
             const nameData = message.records.filter(
-                (record) => record.mediaType === "bank/name"
+                (record) => record.mediaType === "nam"
             )[0]?.data;
             const balanceData = message.records.filter(
-                (record) => record.mediaType === "bank/balance"
+                (record) => record.mediaType === "bal"
             )[0]?.data;
 
             if (!nameData || !balanceData) {
@@ -200,18 +204,18 @@ function App() {
                                 records: [
                                     {
                                         recordType: "mime",
-                                        mediaType: "bank/name",
-                                        data: new TextEncoder().encode(
-                                            cardDetails.cardData!.holder
-                                        ),
-                                    },
-                                    {
-                                        recordType: "mime",
-                                        mediaType: "bank/balance",
+                                        mediaType: "bal",
                                         data: new DataView(
                                             new Float32Array([
                                                 newBalance,
                                             ]).buffer
+                                        ),
+                                    },
+                                    {
+                                        recordType: "mime",
+                                        mediaType: "nam",
+                                        data: new TextEncoder().encode(
+                                            cardDetails.cardData!.holder
                                         ),
                                     },
                                 ],
@@ -288,10 +292,18 @@ function App() {
                     // Now do the writing
                     (async () => {
                         try {
-                            const holder =
+                            let holder =
                                 searchMode === "search"
                                     ? cards[cardDetails.id]
                                     : resetName;
+
+                            // Remove diacritics and trim the name
+                            if (holder) {
+                                holder = holder
+                                    .normalize("NFD")
+                                    .replace(/[\u0300-\u036f]/g, "")
+                                    .trim();
+                            }
 
                             if (!holder) {
                                 toast({
@@ -308,15 +320,15 @@ function App() {
                                 records: [
                                     {
                                         recordType: "mime",
-                                        mediaType: "bank/name",
-                                        data: new TextEncoder().encode(holder),
-                                    },
-                                    {
-                                        recordType: "mime",
-                                        mediaType: "bank/balance",
+                                        mediaType: "bal",
                                         data: new DataView(
                                             new Float32Array([amount]).buffer
                                         ),
+                                    },
+                                    {
+                                        recordType: "mime",
+                                        mediaType: "nam",
+                                        data: new TextEncoder().encode(holder),
                                     },
                                 ],
                             });
