@@ -3,10 +3,13 @@ import {
     extendTheme,
     type ChakraTheme,
 } from "@chakra-ui/react";
+import moment from "moment/min/moment-with-locales";
 import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { PermissionWrapper } from "./PermissionWrapper";
+
+moment.locale("cs");
 
 // add this to prompt for a refresh
 const updateSW = registerSW({

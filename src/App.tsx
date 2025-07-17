@@ -1,6 +1,7 @@
 import {
     DarkMode,
     HStack,
+    Icon,
     IconButton,
     Input,
     InputGroup,
@@ -11,8 +12,10 @@ import {
     useToast,
     VStack,
 } from "@chakra-ui/react";
+import moment from "moment/min/moment-with-locales";
 import { useEffect, useMemo, useState } from "react";
 import {
+    BiHistory,
     BiReset,
     BiSolidChevronsDown,
     BiSolidChevronsUp,
@@ -31,10 +34,56 @@ function idToCardNumber(id: string): number {
     return parseInt(id, 16);
 }
 
+type LSHistoryOperation = {
+    type: "increase" | "decrease" | "repair";
+    note?: string;
+    amount: number;
+};
+
+type LSHistory = Record<
+    number,
+    { amount: number; date: string; operation?: LSHistoryOperation }[]
+>;
+
+function saveToLocalStorage(
+    cardNumber: number,
+    amount: number,
+    operation?: LSHistoryOperation
+): void {
+    const LS_KEY = "nfc-bank-history";
+    const history = JSON.parse(
+        localStorage.getItem(LS_KEY) || "{}"
+    ) as LSHistory;
+
+    const currentDate = new Date().toISOString();
+    if (!history[cardNumber]) {
+        history[cardNumber] = [];
+    }
+    history[cardNumber].push({ amount, date: currentDate, operation });
+
+    localStorage.setItem(LS_KEY, JSON.stringify(history));
+}
+
+function getHistoryFromLocalStorage(
+    cardNumber: number
+): { amount: number; date: string; operation?: LSHistoryOperation }[] {
+    const LS_KEY = "nfc-bank-history";
+    const history = JSON.parse(
+        localStorage.getItem(LS_KEY) || "{}"
+    ) as LSHistory;
+    return history[cardNumber] || [];
+}
+
 function App() {
-    const [currentCard, setCurrentCard] = useState<Card | null>(null);
+    const [currentCard, _setCurrentCard] = useState<Card | null>(null);
+    const setCurrentCard = (card: Card, operation?: LSHistoryOperation) => {
+        _setCurrentCard(card);
+        if (card.cardData) {
+            saveToLocalStorage(card.id, card.cardData.balance, operation);
+        }
+    };
     const [mode, setMode] = useState<
-        "read" | "increase" | "decrease" | "repair"
+        "read" | "increase" | "decrease" | "repair" | "history"
     >("read");
     // const [_iterator, reset] = useReducer((prev) => prev + 1, 0);
     const toast = useToast();
@@ -132,7 +181,8 @@ function App() {
         };
 
         switch (mode) {
-            case "read": {
+            case "read":
+            case "history": {
                 const onSuccess = ((event: NDEFReadingEvent) => {
                     setCurrentCard(parseCardDetails(event, true));
                 }) as EventListener;
@@ -173,8 +223,6 @@ function App() {
                         setMode("read");
                         return;
                     }
-
-                    setCurrentCard(cardDetails);
 
                     let newBalance =
                         mode === "increase"
@@ -242,13 +290,20 @@ function App() {
                                     .replace(/\B(?=(\d{3})+(?!\d))/g, " ")} $`,
                                 status: "success",
                             });
-                            setCurrentCard({
-                                ...cardDetails,
-                                cardData: {
-                                    ...cardDetails.cardData!,
-                                    balance: newBalance,
+                            setCurrentCard(
+                                {
+                                    ...cardDetails,
+                                    cardData: {
+                                        ...cardDetails.cardData!,
+                                        balance: newBalance,
+                                    },
                                 },
-                            });
+                                {
+                                    type: mode,
+                                    note: note,
+                                    amount: amount,
+                                }
+                            );
                             setMode("read");
                             // eslint-disable-next-line @typescript-eslint/no-unused-vars
                         } catch (_error) {
@@ -353,13 +408,19 @@ function App() {
                                 description: `Karta byla úspěšně opravena a patří nyní ${holder}.`,
                                 status: "success",
                             });
-                            setCurrentCard({
-                                ...cardDetails,
-                                cardData: {
-                                    holder: holder,
-                                    balance: 0,
+                            setCurrentCard(
+                                {
+                                    ...cardDetails,
+                                    cardData: {
+                                        holder: holder,
+                                        balance: 0,
+                                    },
                                 },
-                            });
+                                {
+                                    type: "repair",
+                                    amount: amount,
+                                }
+                            );
                             setMode("read");
                         } catch (error) {
                             toast({
@@ -418,6 +479,8 @@ function App() {
         <DarkMode>
             <VStack
                 h="100svh"
+                minH="100svh"
+                maxH="100svh"
                 w="100vw"
                 bg="gray.900"
                 align="center"
@@ -425,6 +488,7 @@ function App() {
                 p={6}
                 color="gray.100"
                 spacing={0}
+                overflowY="auto"
             >
                 <CardDisplay card={currentCard} mb={10} />
                 <HStack>
@@ -461,8 +525,16 @@ function App() {
                         onClick={() => setMode("repair")}
                         colorScheme={mode === "repair" ? "red" : undefined}
                     />
+                    <IconButton
+                        aria-label="Historie"
+                        icon={<BiHistory />}
+                        size="lg"
+                        fontSize="2xl"
+                        onClick={() => setMode("history")}
+                        colorScheme={mode === "history" ? "red" : undefined}
+                    />
                 </HStack>
-                <VStack mt={10}>
+                <VStack mt={10} flexGrow={1} flexShrink={1} w="full">
                     {(mode === "increase" || mode === "decrease") && (
                         <>
                             <HStack w="full">
@@ -599,6 +671,84 @@ function App() {
                                     ></Input>
                                 </HStack>
                             )}
+                        </>
+                    )}
+                    {mode === "history" && (
+                        <>
+                            {getHistoryFromLocalStorage(currentCard?.id || 0)
+                                .sort(
+                                    (a, b) =>
+                                        new Date(b.date).getTime() -
+                                        new Date(a.date).getTime()
+                                )
+                                .map((entry, index) => (
+                                    <VStack
+                                        w="full"
+                                        py={2}
+                                        spacing={0}
+                                        borderBottomColor="gray.700"
+                                        borderBottomWidth={1}
+                                        key={index}
+                                        borderBottomStyle={"solid"}
+                                    >
+                                        <HStack w="full">
+                                            <Text align="left" opacity={0.5}>
+                                                {moment(entry.date).calendar()}
+                                            </Text>
+                                            <Spacer />
+                                            <Text align="right">
+                                                {entry.amount
+                                                    .toFixed(0)
+                                                    .replace(
+                                                        /\B(?=(\d{3})+(?!\d))/g,
+                                                        " "
+                                                    ) + " $"}
+                                            </Text>
+                                        </HStack>
+                                        {entry.operation && (
+                                            <HStack
+                                                w="full"
+                                                color={
+                                                    {
+                                                        increase: "green.400",
+                                                        decrease: "red.400",
+                                                        repair: "yellow.400",
+                                                    }[entry.operation.type]
+                                                }
+                                            >
+                                                <Icon
+                                                    as={
+                                                        {
+                                                            increase:
+                                                                BiSolidChevronsUp,
+                                                            decrease:
+                                                                BiSolidChevronsDown,
+                                                            repair: BiReset,
+                                                        }[
+                                                            entry.operation.type
+                                                        ] || BiHistory
+                                                    }
+                                                    fontSize="2xl"
+                                                ></Icon>
+                                                <Text align="right">
+                                                    {entry.operation.amount
+                                                        .toFixed(0)
+                                                        .replace(
+                                                            /\B(?=(\d{3})+(?!\d))/g,
+                                                            " "
+                                                        ) + " $"}
+                                                </Text>
+                                                <Spacer />
+                                                <Text
+                                                    align="right"
+                                                    fontStyle="italic"
+                                                >
+                                                    {entry.operation.note}
+                                                </Text>
+                                            </HStack>
+                                        )}
+                                    </VStack>
+                                ))}
                         </>
                     )}
                 </VStack>

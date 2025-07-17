@@ -17,6 +17,7 @@
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.1",
         "framer-motion": "^12.23.0",
+        "moment": "^2.30.1",
         "nfc.js": "^0.1.2",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
