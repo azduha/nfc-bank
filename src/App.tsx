@@ -15,6 +15,7 @@ import {
 import moment from "moment/min/moment-with-locales";
 import { useEffect, useMemo, useState } from "react";
 import {
+    BiExport,
     BiHistory,
     BiReset,
     BiSolidChevronsDown,
@@ -457,6 +458,26 @@ function App() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [toast, ndef, mode, amount, overdraft, note, searchMode, resetName]);
 
+    const exporHistory = async () => {
+        const history = getHistoryFromLocalStorage(currentCard?.id || 0);
+        // Copy to clipboard
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(history));
+            toast({
+                title: "Historie zkopírována",
+                description: "Historie byla zkopírována do schránky.",
+                status: "success",
+            });
+        } catch (_) {
+            toast({
+                title: "Chyba při kopírování historie",
+                description:
+                    "Zkontrolujte, zda máte povolený přístup ke schránce.",
+                status: "error",
+            });
+        }
+    };
+
     if (!ndef) {
         return (
             <DarkMode>
@@ -532,6 +553,13 @@ function App() {
                         fontSize="2xl"
                         onClick={() => setMode("history")}
                         colorScheme={mode === "history" ? "red" : undefined}
+                    />
+                    <IconButton
+                        aria-label="Export"
+                        icon={<BiExport />}
+                        size="lg"
+                        fontSize="2xl"
+                        onClick={() => exporHistory()}
                     />
                 </HStack>
                 <VStack mt={10} flexGrow={1} flexShrink={1} w="full">
