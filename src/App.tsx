@@ -463,7 +463,7 @@ function App() {
         const history = localStorage.getItem(LS_KEY) || "{}";
         // Copy to clipboard
         try {
-            await navigator.clipboard.writeText(JSON.stringify(history));
+            await navigator.clipboard.writeText(history);
             toast({
                 title: "Historie zkopírována",
                 description: "Historie byla zkopírována do schránky.",
