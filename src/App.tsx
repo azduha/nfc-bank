@@ -26,6 +26,8 @@ import { cards } from "./cards";
 import { CardDisplay } from "./components/CardDisplay";
 import type { Card } from "./types";
 
+const LS_KEY = "nfc-bank-history";
+
 function idToCardNumber(id: string): number {
     console.log(id, parseInt(id.replace(/:/g, ""), 16));
     // Make sure to remove all colons and crop the string to 14 characters
@@ -51,7 +53,6 @@ function saveToLocalStorage(
     amount: number,
     operation?: LSHistoryOperation
 ): void {
-    const LS_KEY = "nfc-bank-history";
     const history = JSON.parse(
         localStorage.getItem(LS_KEY) || "{}"
     ) as LSHistory;
@@ -459,7 +460,7 @@ function App() {
     }, [toast, ndef, mode, amount, overdraft, note, searchMode, resetName]);
 
     const exporHistory = async () => {
-        const history = getHistoryFromLocalStorage(currentCard?.id || 0);
+        const history = localStorage.getItem(LS_KEY) || "{}";
         // Copy to clipboard
         try {
             await navigator.clipboard.writeText(JSON.stringify(history));
